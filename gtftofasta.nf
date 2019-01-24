@@ -80,6 +80,7 @@ process mergeSamplesFasta {
 }
 
 // add canonical proteins
+// Todo: check awk command
 process addCanonicalProteins {
 
   input:
@@ -91,7 +92,8 @@ process addCanonicalProteins {
 
   script:
   """
-  cat $canonical_proteins combined_unique.fasta > combined_unique_canonical.fasta
+  cat $canonical_proteins combined_unique.fasta > tmp.fasta
+  awk '((NR+1)%2) && !a[\$0]++ { print; getline l ; print l }' tmp.fasta > combined_unique_canonical.fasta
   """
 
 }
