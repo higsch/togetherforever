@@ -4,6 +4,7 @@
 params.outdir = "results"
 
 // read in gtf files from StringTie
+// params.gtf has to be in parantheses
 Channel
   .fromPath(params.gtfs)
   .map { it -> [it.baseName.split("\\.")[0], file(it)] }
@@ -40,17 +41,15 @@ process threeFrameTranslation {
   publishDir params.outdir, mode: "copy"
   
   input:
-  set val(sample), file("nucleotide.fasta") from nucleotide_fastas
+  set val(sample), file(nucleotide_fasta) from nucleotide_fastas
   file translator
 
   output:
-  // set val("${sample}"), file("${sample}.prot.fasta") in aa_fastas
+  set val("${sample}"), file("${sample}.prot.fasta") into aa_fastas
 
   script:
   """
-  python $translator -i nucleotide.fasta -o ${sample}.prot.fasta
+  python $translator -i $nucleotide_fasta -o ${sample}.prot.fasta
   """
 
 }
-
-// aa_fastas.subscribe { println "$it" }
