@@ -1,7 +1,9 @@
 #!/usr/bin/env nextflow
 
-// set default outdir
+// default values
 params.outdir = "results"
+params.missed_cleavages = 2
+params.enzyme = "Trypsin/P"
 
 // read in gtf files from StringTie and define sample names
 // params.gtf has to be in parantheses
@@ -93,14 +95,31 @@ process addCanonicalProteins {
 
   script:
   """
+  # combine fastas
   cat $canonical_proteins combined_unique.fasta > tmp.fasta
-  awk 'BEGIN{RS=">";ORS="";} NF>0 && !a[\$NF]++ { print ">"\$0; }' tmp.fasta > combined_unique_canonical.fasta
+
+  # make one line per header and sequence
+  seqtk seq -A  < tmp.fasta > tmp_layouted.fasta
+
+  # Check, if every second line is a header
+  number_headers=`awk '(NR+1)%2==0' tmp_layouted.fasta | grep -e '^>' -c`
+  number_lines=`wc -l < tmp_layouted.fasta`
+  number_lines_half=\$(( number_lines / 2 ))
+
+  # if true, remove sequence duplicates
+  if [ \"\$number_headers\" = \"\$number_lines_half\" ]; then
+    awk 'BEGIN{RS=">";ORS="";} NF>0 && !a[\$NF]++ { print ">"\$0; }' tmp_layouted.fasta > combined_unique_canonical.fasta
+  else
+    echo \"Error! The input fastas are assumed to have one line per header and sequence.\"
+  fi
   """
 
 }
 
 // digest proteins
-process digest {
+process digestProteins {
+
+  publishDir params.outdir, mode: "copy"
 
   input:
   file 'combined_unique_canonical.fasta' from fasta_combined_unique_canonical
@@ -110,11 +129,11 @@ process digest {
 
   script:
   """
-  /Applications/OpenMS-2.3.0/bin/Digestor -in combined_unique_canonical.fasta \
-                                          -out peptides.fasta \
-                                          -out_type fasta \
-                                          -missed_cleavages 2 \
-                                          -enzyme Trypsin/P
+  Digestor -in combined_unique_canonical.fasta \
+           -out peptides.fasta \
+           -out_type fasta \
+           -missed_cleavages $params.missed_cleavages \
+           -enzyme $params.enzyme
   """
 
 }
