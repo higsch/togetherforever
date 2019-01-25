@@ -18,8 +18,9 @@ genome_fasta = file(params.genome)
 // canonical proteins
 canonical_proteins = file(params.canonical)
 
-// set threeFrameTranslator.py
+// set *.py
 translator = file("threeFrameTranslator.py")
+codonsplitter = file("codonsplitter.py")
 
 
 // fetch the nucleotide sequences from gtf file based on genome fasta
@@ -116,20 +117,38 @@ process addCanonicalProteins {
 
 }
 
+
+// split sequences with stop codon in separate sequences
+process splitStopCodons {
+
+  input:
+  file 'combined_unique_canonical.fasta' from fasta_combined_unique_canonical
+
+  output:
+  file 'nostop.fasta' into fasta_combined_unique_canonical_nostop
+
+  script:
+  """
+  python $codonsplitter -i combined_unique_canonical.fasta -o nostop.fasta -c \"*\"
+  """
+
+}
+
+
 // digest proteins
 process digestProteins {
 
   publishDir params.outdir, mode: "copy"
 
   input:
-  file 'combined_unique_canonical.fasta' from fasta_combined_unique_canonical
+  file 'nostop.fasta' from fasta_combined_unique_canonical_nostop
 
   output:
   file 'peptides.fasta' into peptides
 
   script:
   """
-  Digestor -in combined_unique_canonical.fasta \
+  Digestor -in nostop.fasta \
            -out peptides.fasta \
            -out_type fasta \
            -missed_cleavages $params.missed_cleavages \
