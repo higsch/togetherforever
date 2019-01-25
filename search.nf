@@ -85,6 +85,7 @@ process mergeSamplesFasta {
 // add canonical proteins and delete duplicates
 // adding the canonical to the top ensures that
 // transcript-based duplicates are omitted
+// test this later, without duplicate removal
 process addCanonicalProteins {
 
   input:
@@ -109,7 +110,8 @@ process addCanonicalProteins {
 
   # if true, remove sequence duplicates
   if [ \"\$number_headers\" = \"\$number_lines_half\" ]; then
-    awk 'BEGIN{RS=">";ORS="";} NF>0 && !a[\$NF]++ { print ">"\$0; }' tmp_layouted.fasta > combined_unique_canonical.fasta
+    awk -v RS='>' -v ORS="" 'NR == 1 { next } seen[\$NF] { delete seen[\$NF]; next } { print ">" \$0; seen[\$NF]=1 }' tmp_layouted.fasta > combined_unique_canonical.fasta
+    # awk 'BEGIN{RS=">";ORS="";} NF>0 && !a[\$NF]++ { print ">"\$0; }' tmp_layouted.fasta > combined_unique_canonical.fasta
   else
     echo \"Error! The input fastas are assumed to have one line per header and sequence.\"
   fi
