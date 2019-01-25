@@ -79,8 +79,9 @@ process mergeSamplesFasta {
 
 }
 
-// add canonical proteins
-// Todo: check awk command
+// add canonical proteins and delete duplicates
+// adding the canonical to the top ensures that
+// transcript-based duplicates are omitted
 process addCanonicalProteins {
 
   input:
@@ -93,7 +94,7 @@ process addCanonicalProteins {
   script:
   """
   cat $canonical_proteins combined_unique.fasta > tmp.fasta
-  awk '((NR+1)%2) && !a[\$0]++ { print; getline l ; print l }' tmp.fasta > combined_unique_canonical.fasta
+  awk 'BEGIN{RS=">";ORS="";} NF>0 && !a[\$NF]++ { print ">"\$0; }' tmp.fasta > combined_unique_canonical.fasta
   """
 
 }
