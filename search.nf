@@ -18,9 +18,11 @@ genome_fasta = file(params.genome)
 // canonical proteins
 canonical_proteins = file(params.canonical)
 
-// set *.py
+// set executables
 translator = file("threeFrameTranslator.py")
 codonsplitter = file("codonsplitter.py")
+piDeepNet = file("piDeepNet/getpiScores.R")
+
 
 
 // fetch the nucleotide sequences from gtf file based on genome fasta
@@ -127,7 +129,7 @@ process splitStopCodons {
   file 'combined_unique_canonical.fasta' from fasta_combined_unique_canonical
 
   output:
-  file 'nostop.fasta' into fasta_combined_unique_canonical_nostop
+  file 'nostop.fasta' into fasta_nostop
 
   script:
   """
@@ -140,10 +142,8 @@ process splitStopCodons {
 // digest proteins
 process digestProteins {
 
-  publishDir params.outdir, mode: "copy"
-
   input:
-  file 'nostop.fasta' from fasta_combined_unique_canonical_nostop
+  file 'nostop.fasta' from fasta_nostop
 
   output:
   file 'peptides.fasta' into peptides
@@ -159,7 +159,25 @@ process digestProteins {
 
 }
 
+
 // assign pI values by piDeepNet
+process piDeepNet {
+
+  publishDir params.outdir, mode: "copy"
+
+  input:
+  file 'peptides.fasta' from peptides
+
+  output:
+  file 'peptides_pI.fasta' into peptides_pI
+
+  script:
+  """
+  Rscript $piDeepNet peptides.fasta peptides_pI.fasta
+  """
+
+}
+
 
 // split database based on HiRIEF settings
 
