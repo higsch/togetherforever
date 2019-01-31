@@ -22,16 +22,14 @@ Channel
 // params.mzmls has to be in parantheses
 Channel
   .from(file("${params.mzmldef}").readLines())
-  .map {it -> it.tokenize("\t") }
+  .map { it -> it.tokenize(" |\t") }
   .map { it -> [it[1], it[2], file(it[0])] } // set; fraction; file
   .tap { mzmls }
   .collect { it[1] }
   .set { fractions }
 
 // read in normal PSMs from presearch
-Channel
-  .from(file("${params.normalpsms}"))
-  .set { normalPsms }
+normPsms = file(params.normpsms)
 
 // read genome fasta
 genome_fasta = file(params.genome)
@@ -195,6 +193,7 @@ process piDeepNet {
 
   script:
   """
+  java -jar /Users/matthias.stahl/ki/togetherforever/piDeepNet/piDeep/h2o.3.14.0.3/h2o/java/h2o.jar &
   Rscript $piDeepNet peptides.fasta peptides_pI.fasta
   """
 
@@ -206,8 +205,8 @@ process splitPeptidesToPIFastas {
 
   input:
   file 'peptides_pI.fasta' from peptides_pI
-  file normalPsms from normalPsms
   val fractions from fractions
+  file normPsms
 
   output:
   file 'db_*' into pI_fastas
@@ -215,7 +214,7 @@ process splitPeptidesToPIFastas {
   script:
   """
   python $dbsplitter --pi-peptides peptides_pI.fasta \
-                     --normpsms $normalPsms \
+                     --normpsms $normPsms \
                      --intercept $params.intercept \
                      --width $params.width \
                      --tolerance $params.tolerance \
