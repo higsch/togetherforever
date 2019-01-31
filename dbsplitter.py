@@ -96,8 +96,9 @@ def assignPeptidesToFracDict(pIFracDict, pIPeptides):
 
 
 def writeFasta(pIFracDict, outFile):
+  outFileComponents = outFile.split('*')
   for frac, db in pIFracDict.items():
-    with open(outFile.split('.')[0] + '_' + str(frac) + '.fasta', 'w') as o:
+    with open(outFileComponents[0] + str(frac) + outFileComponents[1], 'w') as o:
       for record in db['peptides']:
         o.write('%s\n%s\n' % ('>' + record.id + ' ' + record.description, record.seq))
 

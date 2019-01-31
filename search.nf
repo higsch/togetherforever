@@ -5,6 +5,11 @@ params.outdir = "results"
 params.missed_cleavages = 2
 params.enzyme = "Trypsin/P"
 
+params.intercept = 3.5
+params.width = 0.07
+params.tolerance = 0.11
+params.amount = 72
+
 // read in gtf files from StringTie and define sample names
 // params.gtf has to be in parantheses
 Channel
@@ -16,15 +21,17 @@ Channel
 // layout: filepath, set, fraction
 // params.mzmls has to be in parantheses
 Channel
-  .from(file(params.mzmldef).readLines()) // include $, if it doesn't work
+  .from(file("${params.mzmldef}").readLines())
   .map {it -> it.tokenize("\t") }
   .map { it -> [it[1], it[2], file(it[0])] } // set; fraction; file
-  .set { mzmls }
+  .tap { mzmls }
+  .collect { it[1] }
+  .set { fractions }
 
 // read in normal PSMs from presearch
 Channel
-  .from(file(params.normalpsms))
-  .set { normalPsms}
+  .from(file("${params.normalpsms}"))
+  .set { normalPsms }
 
 // read genome fasta
 genome_fasta = file(params.genome)
@@ -200,13 +207,21 @@ process splitPeptidesToPIFastas {
   input:
   file 'peptides_pI.fasta' from peptides_pI
   file normalPsms from normalPsms
+  val fractions from fractions
 
   output:
   file 'db_*' into pI_fastas
 
   script:
   """
-  python $dbsplitter 
+  python $dbsplitter --pi-peptides peptides_pI.fasta \
+                     --normpsms $normalPsms \
+                     --intercept $params.intercept \
+                     --width $params.width \
+                     --tolerance $params.tolerance \
+                     --amount $params.amount \
+                     --fractions ${fractions.join(',')} \
+                     --out db_*.fasta
   """
 
 }
