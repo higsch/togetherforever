@@ -45,7 +45,7 @@ dbsplitter = file("dbsplitter.py")
 
 
 // fetch the nucleotide sequences from gtf file based on genome fasta
-process getNucleotideSequences {
+process GetNucleotideSequences {
 
   input:
   set val(sample), file(gtf) from gtfs
@@ -63,7 +63,7 @@ process getNucleotideSequences {
 
 
 // translate the nucleotide transcripts to amino acids (three frames)
-process threeFrameTranslation {
+process ThreeFrameTranslation {
   
   input:
   set val(sample), file(nucleotide_fasta) from nucleotide_fastas
@@ -85,7 +85,7 @@ aa_fastas
   .set { aa_fastas_combined }
 
 // merge all samples and remove duplicate IDs
-process mergeSamplesFasta {
+process MergeSamplesFasta {
 
   input:
   file fastas from aa_fastas_combined
@@ -107,7 +107,7 @@ process mergeSamplesFasta {
 // adding the canonical to the top ensures that
 // transcript-based duplicates are omitted
 // test this later, without duplicate removal
-process addCanonicalProteins {
+process AddCanonicalProteins {
 
   input:
   file 'combined_unique.fasta' from fasta_combined_unique
@@ -142,7 +142,7 @@ process addCanonicalProteins {
 
 
 // split sequences with stop codon in separate sequences
-process splitStopCodons {
+process SplitStopCodons {
 
   input:
   file 'combined_unique_canonical.fasta' from fasta_combined_unique_canonical
@@ -159,7 +159,7 @@ process splitStopCodons {
 
 
 // digest proteins
-process digestProteins {
+process DigestProteins {
 
   input:
   file 'nostop.fasta' from fasta_nostop
@@ -181,7 +181,7 @@ process digestProteins {
 
 // assign pI values by piDeepNet
 // start h2o server before
-process piDeepNet {
+process PIDeepNet {
 
   publishDir params.outdir, mode: "copy"
 
@@ -201,7 +201,7 @@ process piDeepNet {
 
 
 // split database based on HiRIEF settings
-process splitPeptidesToPIFastas {
+process SplitPeptidesToPIFastas {
 
   input:
   file 'peptides_pI.fasta' from peptides_pI
@@ -221,6 +221,30 @@ process splitPeptidesToPIFastas {
                      --amount $params.amount \
                      --fractions ${fractions.join(',')} \
                      --out db_*.fasta
+  """
+
+}
+
+
+pI_fastas
+  .flatten()
+  .map { it -> [it.baseName.split("_")[1], file(it)] }
+  .set { pI_tdb }
+
+
+// add decoy sequences
+process AddDecoys {
+
+  input:
+  set val(fraction), file(tdb) from pI_tdb 
+
+  output:
+  set val("${fraction}"), file("tddb_${fraction}.fasta") into pI_tddb
+
+  script:
+  """
+  DecoyDatabase -in $tdb \
+                -out tddb_${fraction}.fasta
   """
 
 }
