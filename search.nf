@@ -1,9 +1,9 @@
 #!/usr/bin/env nextflow
 
 // default values
-params.outdir = "results"
+params.outdir = 'results'
 params.missed_cleavages = 2
-params.enzyme = "Trypsin/P"
+params.enzyme = 'Trypsin/P'
 
 params.intercept = 3.5
 params.width = 0.07
@@ -14,7 +14,7 @@ params.amount = 72
 // params.gtf has to be in parantheses
 Channel
   .fromPath(params.gtfs)
-  .map { it -> [it.baseName.split("\\.")[0], file(it)] }
+  .map { it -> [it.baseName.split('\\.')[0], file(it)] }
   .set { gtfs }
 
 // read in mzML definition file
@@ -22,7 +22,7 @@ Channel
 // params.mzmls has to be in parantheses
 Channel
   .from(file("${params.mzmldef}").readLines())
-  .map { it -> it.tokenize(" |\t") }
+  .map { it -> it.tokenize(' |\t') }
   .map { it -> [it[1], it[2], file(it[0])] } // set; fraction; file
   .tap { mzmls }
   .collect { it[1] }
@@ -35,13 +35,13 @@ normPsms = file(params.normpsms)
 genome_fasta = file(params.genome)
 
 // canonical proteins
-canonical_proteins = file(params.canonical)
+canonical_proteins_fasta = file(params.canonical)
 
 // set executables
-translator = file("threeFrameTranslator.py")
-codonsplitter = file("codonsplitter.py")
-piDeepNet = file("piDeepNet/getpiScores.R")
-dbsplitter = file("dbsplitter.py")
+translator = file('threeFrameTranslator.py')
+codonsplitter = file('codonsplitter.py')
+piDeepNet = file('piDeepNet/getpiScores.R')
+dbsplitter = file('dbsplitter.py')
 
 
 // fetch the nucleotide sequences from gtf file based on genome fasta
@@ -91,7 +91,7 @@ process MergeSampleFastas {
   file fastas from aa_fastas_combined
 
   output:
-  file "combined_unique.fasta" into fasta_combined_unique
+  file 'combined_unique.fasta' into fasta_combined_unique
 
   script:
   """
@@ -104,73 +104,35 @@ process MergeSampleFastas {
 }
 
 
-// add canonical proteins and delete duplicates
-// adding the canonical to the top ensures that
-// transcript-based duplicates are omitted
-// test this later, without duplicate removal
-process AddCanonicalProteins {
-
-  input:
-  file "combined_unique.fasta" from fasta_combined_unique
-  file canonical_proteins
-
-  output:
-  file "combined_unique_canonical.fasta" into fasta_combined_unique_canonical
-
-  script:
-  """
-  # combine fastas
-  cat $canonical_proteins combined_unique.fasta > tmp.fasta
-
-  # make one line per header and sequence
-  seqtk seq -A  < tmp.fasta > tmp_layouted.fasta
-
-  # Check, if every second line is a header
-  number_headers=`awk '(NR+1)%2==0' tmp_layouted.fasta | grep -e '^>' -c`
-  number_lines=`wc -l < tmp_layouted.fasta`
-  number_lines_half=\$(( number_lines / 2 ))
-
-  # if true, remove sequence duplicates
-  if [ \"\$number_headers\" = \"\$number_lines_half\" ]; then
-    awk -v RS='>' -v ORS="" 'NR == 1 { next } seen[\$NF] { delete seen[\$NF]; next } { print ">" \$0; seen[\$NF]=1 }' tmp_layouted.fasta > combined_unique_canonical.fasta
-    # awk 'BEGIN{RS=">";ORS="";} NF>0 && !a[\$NF]++ { print ">"\$0; }' tmp_layouted.fasta > combined_unique_canonical.fasta
-  else
-    echo \"Error! The input fastas are assumed to have one line per header and sequence.\"
-  fi
-  """
-
-}
-
-
 // split sequences with stop codon in separate sequences
 process SplitStopCodons {
 
   input:
-  file "combined_unique_canonical.fasta" from fasta_combined_unique_canonical
+  file stop_fasta from fasta_combined_unique
 
   output:
-  file "nostop.fasta" into fasta_nostop
+  file 'no_stop.fasta' into fasta_nostop
 
   script:
   """
-  python $codonsplitter -i combined_unique_canonical.fasta -o nostop.fasta -c \"*\"
+  python $codonsplitter -i $stop_fasta -o no_stop.fasta -c \"*\"
   """
 
 }
 
 
 // digest proteins
-process DigestProteins {
+process DigestTranscriptome {
 
   input:
-  file "nostop.fasta" from fasta_nostop
+  file proteins_fasta from fasta_nostop
 
   output:
-  file "peptides.fasta" into peptides
+  file 'peptides.fasta' into peptides
 
   script:
   """
-  Digestor -in nostop.fasta \
+  Digestor -in $proteins_fasta \
            -out peptides.fasta \
            -out_type fasta \
            -missed_cleavages $params.missed_cleavages \
@@ -181,40 +143,38 @@ process DigestProteins {
 
 
 // assign pI values by piDeepNet
-// start h2o server before
-process PIDeepNet {
-
-  publishDir params.outdir, mode: "copy"
+// includes starting a h2o server before
+process PIPredictionOnTranscriptome {
 
   input:
-  file "peptides.fasta" from peptides
+  file peptides from peptides
 
   output:
-  file "peptides_pI.fasta" into peptides_pI
+  file 'peptides_pI.fasta' into peptides_pI
 
   script:
   """
   java -jar /Users/matthias.stahl/ki/togetherforever/piDeepNet/piDeep/h2o.3.14.0.3/h2o/java/h2o.jar &
-  Rscript $piDeepNet peptides.fasta peptides_pI.fasta
+  Rscript $piDeepNet $peptides peptides_pI.fasta
   """
 
 }
 
 
-// split database based on HiRIEF settings
-process SplitPeptidesToPIFastas {
+// split database based on isoelectric focussing
+process SplitTranscriptomePeptidesToPIDBs {
 
   input:
-  file "peptides_pI.fasta" from peptides_pI
+  file peptides_pI from peptides_pI
   val fractions from fractions
   file normPsms
 
   output:
-  file "db_*" into pI_fastas
+  file 'db_*' into pI_fastas
 
   script:
   """
-  python $dbsplitter --pi-peptides peptides_pI.fasta \
+  python $dbsplitter --pi-peptides $peptides_pI \
                      --normpsms $normPsms \
                      --intercept $params.intercept \
                      --width $params.width \
@@ -230,29 +190,46 @@ process SplitPeptidesToPIFastas {
 pI_fastas
   .flatten()
   .map { it -> [it.baseName.split("_")[1], file(it)] }
-  .set { pI_tdb }
+  .set { pI_tdbs }
 
 
-// add decoy sequences
-process AddDecoys {
+// digest canonical proteins
+process DigestKnownProteome {
 
   input:
-  set val(fraction), file(tdb) from pI_tdb 
+  file canonical_proteins_fasta
 
   output:
-  set val("${fraction}"), file("tddb_${fraction}.fasta") into pI_tddb
+  file 'canonical_peptides.fasta' into canonical_peptides
 
   script:
   """
-  # check if db file is empty
-  if [[ -s $tdb ]] ; then
-    # no, then create target-decoy database
-    DecoyDatabase -in $tdb \
-                  -out tddb_${fraction}.fasta
-  else
-    # empty file, then just create an empty db
-    touch tddb_${fraction}.fasta
-  fi ;
+  Digestor -in $canonical_proteins_fasta \
+           -out canonical_peptides.fasta \
+           -out_type fasta \
+           -missed_cleavages $params.missed_cleavages \
+           -enzyme $params.enzyme
+  """
+
+}
+
+
+// add canonical peptides to each pI DB
+process MergeTranscriptomeCanonicalsAndAddDecoys {
+
+  publishDir 'results', mode: "copy"
+
+  input:
+  set val(fraction), file(db) from pI_tdbs
+  file(canonical_peptides) from canonical_peptides
+
+  output:
+  set val("${fraction}"), file("tddb_${fraction}.fasta") into combined_tdbs
+
+  script:
+  """
+  DecoyDatabase -in $db $canonical_peptides \
+                -out tddb_${fraction}.fasta
   """
 
 }

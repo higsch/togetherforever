@@ -100,7 +100,7 @@ def writeFasta(pIFracDict, outFile):
   for frac, db in pIFracDict.items():
     with open(outFileComponents[0] + str(frac) + outFileComponents[1], 'w') as o:
       for record in db['peptides']:
-        o.write('%s\n%s\n' % ('>' + record.description, record.seq))
+        o.write('%s\n%s\n' % ('>' + record.id + ' ' + record.description, record.seq))
 
 
 if __name__ == '__main__':
