@@ -1,7 +1,7 @@
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A50.32.0-brightgreen.svg)](https://www.nextflow.io/)
 
 # Precision Proteogenomics Pipeline
-Takes `bam` files, outputs peptide expression profiles.
+Takes `gtf` files, outputs peptide expression profiles.
 Built in cooperation with [Husen's](https://github.com/husensofteng) 
 [proteogenomics code](https://github.com/husensofteng/ProteoGenomics).
 
