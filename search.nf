@@ -85,13 +85,13 @@ aa_fastas
   .set { aa_fastas_combined }
 
 // merge all samples and remove duplicate IDs
-process MergeSamplesFasta {
+process MergeSampleFastas {
 
   input:
   file fastas from aa_fastas_combined
 
   output:
-  file 'combined_unique.fasta' into fasta_combined_unique
+  file "combined_unique.fasta" into fasta_combined_unique
 
   script:
   """
@@ -103,6 +103,7 @@ process MergeSamplesFasta {
 
 }
 
+
 // add canonical proteins and delete duplicates
 // adding the canonical to the top ensures that
 // transcript-based duplicates are omitted
@@ -110,11 +111,11 @@ process MergeSamplesFasta {
 process AddCanonicalProteins {
 
   input:
-  file 'combined_unique.fasta' from fasta_combined_unique
+  file "combined_unique.fasta" from fasta_combined_unique
   file canonical_proteins
 
   output:
-  file 'combined_unique_canonical.fasta' into fasta_combined_unique_canonical
+  file "combined_unique_canonical.fasta" into fasta_combined_unique_canonical
 
   script:
   """
@@ -145,10 +146,10 @@ process AddCanonicalProteins {
 process SplitStopCodons {
 
   input:
-  file 'combined_unique_canonical.fasta' from fasta_combined_unique_canonical
+  file "combined_unique_canonical.fasta" from fasta_combined_unique_canonical
 
   output:
-  file 'nostop.fasta' into fasta_nostop
+  file "nostop.fasta" into fasta_nostop
 
   script:
   """
@@ -162,10 +163,10 @@ process SplitStopCodons {
 process DigestProteins {
 
   input:
-  file 'nostop.fasta' from fasta_nostop
+  file "nostop.fasta" from fasta_nostop
 
   output:
-  file 'peptides.fasta' into peptides
+  file "peptides.fasta" into peptides
 
   script:
   """
@@ -186,10 +187,10 @@ process PIDeepNet {
   publishDir params.outdir, mode: "copy"
 
   input:
-  file 'peptides.fasta' from peptides
+  file "peptides.fasta" from peptides
 
   output:
-  file 'peptides_pI.fasta' into peptides_pI
+  file "peptides_pI.fasta" into peptides_pI
 
   script:
   """
@@ -204,12 +205,12 @@ process PIDeepNet {
 process SplitPeptidesToPIFastas {
 
   input:
-  file 'peptides_pI.fasta' from peptides_pI
+  file "peptides_pI.fasta" from peptides_pI
   val fractions from fractions
   file normPsms
 
   output:
-  file 'db_*' into pI_fastas
+  file "db_*" into pI_fastas
 
   script:
   """
@@ -243,8 +244,15 @@ process AddDecoys {
 
   script:
   """
-  DecoyDatabase -in $tdb \
-                -out tddb_${fraction}.fasta
+  # check if db file is empty
+  if [[ -s $tdb ]] ; then
+    # no, then create target-decoy database
+    DecoyDatabase -in $tdb \
+                  -out tddb_${fraction}.fasta
+  else
+    # empty file, then just create an empty db
+    touch tddb_${fraction}.fasta
+  fi ;
   """
 
 }
