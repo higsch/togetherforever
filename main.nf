@@ -4,6 +4,7 @@
 params.outdir = 'results'
 params.missed_cleavages = 2
 params.enzyme = 'Trypsin/P'
+params.mods = 'data/mods/tmtmods.txt'
 
 params.intercept = 3.5
 params.width = 0.07
@@ -23,10 +24,10 @@ Channel
 Channel
   .from(file("${params.mzmldef}").readLines())
   .map { it -> it.tokenize(' |\t') }
-  .map { it -> [it[1], it[2], file(it[0])] } // set; fraction; file
+  .map { it -> [it[2], it[1], it[0].replaceFirst(/.*\/(\S+)\.mzML/, "\$1"), file(it[0])] } // fraction; set; file
   .tap { mzmls }
-  .collect { it[1] }
-  .set { fractions }
+  .collect { it[0] }
+  .set { fractions } // needed to calculate split DBs
 
 // read in normal PSMs from presearch
 normPsms = file(params.normpsms)
@@ -36,6 +37,9 @@ genome_fasta = file(params.genome)
 
 // canonical proteins
 canonical_proteins_fasta = file(params.canonical)
+
+// modifications
+mods = file(params.mods)
 
 // set executables
 translator = file('threeFrameTranslator.py')
@@ -217,8 +221,6 @@ process DigestKnownProteome {
 // add canonical peptides to each pI DB
 process MergeTranscriptomeCanonicalsAndAddDecoys {
 
-  publishDir 'results', mode: "copy"
-
   input:
   set val(fraction), file(db) from pI_tdbs
   file(canonical_peptides) from canonical_peptides
@@ -234,7 +236,34 @@ process MergeTranscriptomeCanonicalsAndAddDecoys {
 
 }
 
+
+combined_tdbs
+  .cross(mzmls)
+  .map { it -> [it[0][0], it[1][1], it[1][2], it[1][3], it[0][1]] }
+  .set { mzmls_fastas }
+
+
 // run MSGF+
+process MSGFPlus {
+
+  publishDir 'results', mode: "copy" 
+
+  input:
+  set val(fraction), val(set), val(sample), file(mzml), file(db) from mzmls_fastas
+  file mods
+
+  output:
+  set val(fraction), val(set), val(sample), file("${sample}.mzid") into mzids
+  set val(fraction), val(set), val(sample), file("${sample}.mzid"), file("${sample}.tsv") into mzidtsvs
+
+  script:
+  """
+  java -Xmx16G -jar /Users/matthias.stahl/ki/togetherforever/MSGFPlus.jar -d $db -s $mzml -o "${sample}.mzid" -thread 12 -mod $mods -tda 0 -t 10.0ppm -ti -1,2 -m 0 -inst 3 -e 9 -protocol 4 -ntt 2 -minLength 7 -maxLength 50 -minCharge 2 -maxCharge 6 -n 1 -addFeatures 1
+  java -Xmx3500M -cp /Users/matthias.stahl/ki/togetherforever/MSGFPlus.jar edu.ucsd.msjava.ui.MzIDToTsv -i "${sample}.mzid" -o "${sample}.tsv"
+  """
+
+}
+
 
 // percolator
 
