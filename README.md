@@ -8,5 +8,5 @@ Built in cooperation with [Husen's](https://github.com/husensofteng)
 ## Run command for testing purposes
 Assumes a lot of dependencies, but docker image will come soon.
 ```
-nextflow search.nf --gtfs "data/gtf/*.gtf" --genome resources/Homo_sapiens.GRCh37.dna.primary_assembly.fa --canonical resources/Homo_sapiens.GRCh38.ENS90.pep.all.fa --mzmldef data/mzml/mzmldef.txt --normpsms data/normpsms/test.txt -resume
+nextflow main.nf --gtfs "data/gtf/*.gtf" --genome resources/Homo_sapiens.GRCh37.dna.primary_assembly.fa --canonical resources/Homo_sapiens.GRCh38.ENS90.pep.all.fa --mzmldef data/mzml/mzmldef.txt --normpsms data/normpsms/test.txt -resume
 ```
