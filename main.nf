@@ -253,18 +253,39 @@ process MSGFPlus {
   file mods
 
   output:
-  set val(fraction), val(set), val(sample), file("${sample}.mzid") into mzids
-  set val(fraction), val(set), val(sample), file("${sample}.mzid"), file("${sample}.tsv") into mzidtsvs
+  set val(set), val(fraction), val(sample), file("${sample}.mzid") into mzids
+  set val(set), val(fraction), val(sample), file("${sample}.mzid"), file("${sample}.tsv") into mzidtsvs
 
   script:
   """
-  java -Xmx16G -jar /Users/matthias.stahl/ki/togetherforever/MSGFPlus.jar -d $db -s $mzml -o "${sample}.mzid" -thread 12 -mod $mods -tda 0 -t 10.0ppm -ti -1,2 -m 0 -inst 3 -e 9 -protocol 4 -ntt 2 -minLength 7 -maxLength 50 -minCharge 2 -maxCharge 6 -n 1 -addFeatures 1
+  java -Xmx16G -jar /Users/matthias.stahl/ki/togetherforever/MSGFPlus.jar -d $db -s $mzml -o "${sample}.mzid" -thread 4 -mod $mods -tda 0 -t 10.0ppm -ti -1,2 -m 0 -inst 3 -e 9 -protocol 4 -ntt 2 -minLength 7 -maxLength 50 -minCharge 2 -maxCharge 6 -n 1 -addFeatures 1
   java -Xmx3500M -cp /Users/matthias.stahl/ki/togetherforever/MSGFPlus.jar edu.ucsd.msjava.ui.MzIDToTsv -i "${sample}.mzid" -o "${sample}.tsv"
   """
 
 }
 
 
+mzids
+  .groupTuple()
+  .set { mzids2pin }
+
+
 // percolator
+process Percolator {
+
+  input:
+  set val(setname), val(fractions), val(samples), file('mzid?') from mzids2pin
+
+  output:
+  set val(setname), file('perco.xml') into percolated
+
+  """
+  echo $samples
+  mkdir mzids
+  count=1;for sam in ${samples.join(' ')}; do ln -s `pwd`/mzid\$count mzids/\${sam}.mzid; echo mzids/\${sam}.mzid >> metafile; ((count++));done
+  msgf2pin -o percoin.xml -e trypsin -P "decoy_" metafile
+  percolator -j percoin.xml -X perco.xml -N 500000 --decoy-xml-output -y
+  """
+}
 
 // protein inference
