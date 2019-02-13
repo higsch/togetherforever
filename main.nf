@@ -41,12 +41,6 @@ canonical_proteins_fasta = file(params.canonical)
 // modifications
 mods = file(params.mods)
 
-// set executables
-translator = file('threeFrameTranslator.py')
-codonsplitter = file('codonsplitter.py')
-piDeepNet = file('piDeepNet/getpiScores.R')
-dbsplitter = file('dbsplitter.py')
-
 
 // fetch the nucleotide sequences from gtf file based on genome fasta
 process GetNucleotideSequences {
@@ -71,14 +65,13 @@ process ThreeFrameTranslation {
   
   input:
   set val(sample), file(nucleotide_fasta) from nucleotide_fastas
-  file translator
 
   output:
   set val("${sample}"), file("${sample}.prot.fasta") into aa_fastas
 
   script:
   """
-  python $translator -i $nucleotide_fasta -o ${sample}.prot.fasta
+  threeFrameTranslator.py -i $nucleotide_fasta -o ${sample}.prot.fasta
   """
 
 }
@@ -159,7 +152,7 @@ process PIPredictionOnTranscriptome {
   script:
   """
   java -jar /piDeepNet/piDeep/h2o.3.14.0.3/h2o/java/h2o.jar &
-  Rscript $piDeepNet $peptides peptides_pI.fasta
+  Rscript piDeepNet/getpiScores.R $peptides peptides_pI.fasta
   """
 
 }
@@ -178,14 +171,14 @@ process SplitTranscriptomePeptidesToPIDBs {
 
   script:
   """
-  python $dbsplitter --pi-peptides $peptides_pI \
-                     --normpsms $normPsms \
-                     --intercept $params.intercept \
-                     --width $params.width \
-                     --tolerance $params.tolerance \
-                     --amount $params.amount \
-                     --fractions ${fractions.join(',')} \
-                     --out db_*.fasta
+  codonsplitter.py --pi-peptides $peptides_pI \
+                   --normpsms $normPsms \
+                   --intercept $params.intercept \
+                   --width $params.width \
+                   --tolerance $params.tolerance \
+                   --amount $params.amount \
+                   --fractions ${fractions.join(',')} \
+                   --out db_*.fasta
   """
 
 }
