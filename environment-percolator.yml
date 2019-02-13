@@ -1,0 +1,6 @@
+name: togetherforever-percolator
+channels:
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::percolator=3.1-0
