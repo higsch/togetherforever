@@ -2,6 +2,7 @@ FROM nfcore/base
 MAINTAINER Matthias Stahl <matthias.stahl@ki.se>
 LABEL description="Docker image containing all requirements for the togetherforever pipeline."
 
+COPY *.py /
 COPY ./piDeepNet /piDeepNet
 COPY ./environment.yml /
 COPY ./environment-percolator.yml /

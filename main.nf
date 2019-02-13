@@ -158,7 +158,7 @@ process PIPredictionOnTranscriptome {
 
   script:
   """
-  java -jar /Users/matthias.stahl/ki/togetherforever/piDeepNet/piDeep/h2o.3.14.0.3/h2o/java/h2o.jar &
+  java -jar /piDeepNet/piDeep/h2o.3.14.0.3/h2o/java/h2o.jar &
   Rscript $piDeepNet $peptides peptides_pI.fasta
   """
 
