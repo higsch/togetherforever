@@ -112,7 +112,7 @@ process SplitStopCodons {
 
   script:
   """
-  python $codonsplitter -i $stop_fasta -o no_stop.fasta -c \"*\"
+  codonsplitter.py -i $stop_fasta -o no_stop.fasta -c \"*\"
   """
 
 }
@@ -152,7 +152,7 @@ process PIPredictionOnTranscriptome {
   script:
   """
   java -jar /piDeepNet/piDeep/h2o.3.14.0.3/h2o/java/h2o.jar &
-  Rscript piDeepNet/getpiScores.R $peptides peptides_pI.fasta
+  Rscript /piDeepNet/getpiScores.R $peptides peptides_pI.fasta
   """
 
 }
