@@ -171,14 +171,14 @@ process SplitTranscriptomePeptidesToPIDBs {
 
   script:
   """
-  codonsplitter.py --pi-peptides $peptides_pI \
-                   --normpsms $normPsms \
-                   --intercept $params.intercept \
-                   --width $params.width \
-                   --tolerance $params.tolerance \
-                   --amount $params.amount \
-                   --fractions ${fractions.join(',')} \
-                   --out db_*.fasta
+  dbsplitter.py --pi-peptides $peptides_pI \
+                --normpsms $normPsms \
+                --intercept $params.intercept \
+                --width $params.width \
+                --tolerance $params.tolerance \
+                --amount $params.amount \
+                --fractions ${fractions.join(',')} \
+                --out db_*.fasta
   """
 
 }
@@ -223,8 +223,13 @@ process MergeTranscriptomeCanonicalsAndAddDecoys {
 
   script:
   """
-  DecoyDatabase -in $db $canonical_peptides \
-                -out tddb_${fraction}.fasta
+  if [ -s "$db" ]; then
+    DecoyDatabase -in $db $canonical_peptides \
+                  -out tddb_${fraction}.fasta
+  else
+    DecoyDatabase -in $canonical_peptides \
+                  -out tddb_${fraction}.fasta
+  fi
   """
 
 }
@@ -251,8 +256,8 @@ process MSGFPlus {
 
   script:
   """
-  java -Xmx16G -jar /Users/matthias.stahl/ki/togetherforever/MSGFPlus.jar -d $db -s $mzml -o "${sample}.mzid" -thread 4 -mod $mods -tda 0 -t 10.0ppm -ti -1,2 -m 0 -inst 3 -e 9 -protocol 4 -ntt 2 -minLength 7 -maxLength 50 -minCharge 2 -maxCharge 6 -n 1 -addFeatures 1
-  java -Xmx3500M -cp /Users/matthias.stahl/ki/togetherforever/MSGFPlus.jar edu.ucsd.msjava.ui.MzIDToTsv -i "${sample}.mzid" -o "${sample}.tsv"
+  msgf_plus -Xmx16G -d $db -s $mzml -o "${sample}.mzid" -thread 4 -mod $mods -tda 0 -t 10.0ppm -ti -1,2 -m 0 -inst 3 -e 9 -protocol 4 -ntt 2 -minLength 7 -maxLength 50 -minCharge 2 -maxCharge 6 -n 1 -addFeatures 1
+  msgf_plus -Xmx3500M edu.ucsd.msjava.ui.MzIDToTsv -i "${sample}.mzid" -o "${sample}.tsv"
   """
 
 }

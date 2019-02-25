@@ -8,6 +8,7 @@ dependencies:
   - bioconda::gffread=0.9.12-0
   - bioconda::openms=2.4.0-0
   - bioconda::msgf_plus=2017.07.21
+  - bioconda::bioconductor-biocinstaller=1.32.1
   - conda-forge::r-data.table=1.11.4
   - conda-forge::r-hexbin=1.27.2
   - conda-forge::r-openxlsx=4.1.0
@@ -26,4 +27,4 @@ dependencies:
   - conda-forge::r-plyr=1.8.4
   - conda-forge::r-shiny=1.2.0
   - conda-forge::r-ggrepel=0.8.0
-  - bioconda::bioconductor-biocinstaller=1.32.1
+  - conda-forge::r-rcurl=1.95
