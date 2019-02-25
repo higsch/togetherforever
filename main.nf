@@ -45,6 +45,8 @@ mods = file(params.mods)
 // fetch the nucleotide sequences from gtf file based on genome fasta
 process GetNucleotideSequences {
 
+  tag "$sample"
+
   input:
   set val(sample), file(gtf) from gtfs
   file genome_fasta
@@ -63,6 +65,8 @@ process GetNucleotideSequences {
 // translate the nucleotide transcripts to amino acids (three frames)
 process ThreeFrameTranslation {
   
+  tag "$sample"
+
   input:
   set val(sample), file(nucleotide_fasta) from nucleotide_fastas
 
@@ -214,6 +218,8 @@ process DigestKnownProteome {
 // add canonical peptides to each pI DB
 process MergeTranscriptomeCanonicalsAndAddDecoys {
 
+  tag "$fraction"
+
   input:
   set val(fraction), file(db) from pI_tdbs
   file(canonical_peptides) from canonical_peptides
@@ -244,6 +250,8 @@ combined_tdbs
 // run MSGF+
 process MSGFPlus {
 
+  tag "$set $fraction"
+
   input:
   set val(fraction), val(set), val(sample), file(mzml), file(db) from mzmls_fastas
   file mods
@@ -269,21 +277,29 @@ mzids
 // percolator
 process Percolator {
 
+  tag "$set $fractions"
+
   publishDir 'results', mode: "copy" 
 
   input:
-  set val(setname), val(fractions), val(samples), file('mzid?') from mzids2pin
+  set val(set), val(fractions), val(samples), file("mzid?") from mzids2pin
 
   output:
-  set val(setname), file('perco.xml') into percolated
+  set val(set), file("Set${set}.perco.xml") into percolated
 
   """
   echo $samples
   mkdir mzids
   count=1;for sam in ${samples.join(' ')}; do ln -s `pwd`/mzid\$count mzids/\${sam}.mzid; echo mzids/\${sam}.mzid >> metafile; ((count++));done
   msgf2pin -o percoin.xml -e trypsin -P "DECOY_" metafile
-  percolator -j percoin.xml -X perco.xml -N 500000 --decoy-xml-output -y
+  percolator -j percoin.xml -X "Set${set}.perco.xml" -N 500000 --decoy-xml-output -y
   """
 }
+
+
+mzidtsvs
+  .groupTuple()
+  .join(percolated)
+  .set { mzperco }
 
 // protein inference
