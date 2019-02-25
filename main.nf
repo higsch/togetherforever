@@ -244,8 +244,6 @@ combined_tdbs
 // run MSGF+
 process MSGFPlus {
 
-  publishDir 'results', mode: "copy" 
-
   input:
   set val(fraction), val(set), val(sample), file(mzml), file(db) from mzmls_fastas
   file mods
@@ -271,6 +269,8 @@ mzids
 // percolator
 process Percolator {
 
+  publishDir 'results', mode: "copy" 
+
   input:
   set val(setname), val(fractions), val(samples), file('mzid?') from mzids2pin
 
@@ -281,7 +281,7 @@ process Percolator {
   echo $samples
   mkdir mzids
   count=1;for sam in ${samples.join(' ')}; do ln -s `pwd`/mzid\$count mzids/\${sam}.mzid; echo mzids/\${sam}.mzid >> metafile; ((count++));done
-  msgf2pin -o percoin.xml -e trypsin -P "decoy_" metafile
+  msgf2pin -o percoin.xml -e trypsin -P "DECOY_" metafile
   percolator -j percoin.xml -X perco.xml -N 500000 --decoy-xml-output -y
   """
 }
